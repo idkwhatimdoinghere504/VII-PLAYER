@@ -1,0 +1,52 @@
+name: Build 2VI AI APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          settings_file="$(find . -type f \( -name settings.gradle -o -name settings.gradle.kts \) \
+            -not -path '*/.git/*' -not -path '*/build/*' -print -quit)"
+
+          if [ -z "$settings_file" ]; then
+            echo "Could not find settings.gradle or settings.gradle.kts in the repository."
+            exit 1
+          fi
+
+          cd "$(dirname "$settings_file")"
+
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleDebug --no-daemon
+          else
+            gradle assembleDebug --no-daemon
+          fi
+
+      - name: Save APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: 2VI-AI-debug-apk
+          path: "**/build/outputs/apk/debug/*.apk"
+          if-no-files-found: error
